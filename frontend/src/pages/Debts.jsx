@@ -68,7 +68,11 @@ export default function Debts() {
   const visibleEntries = entries.filter((e) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return e.person.toLowerCase().includes(q) || (e.remarks || '').toLowerCase().includes(q);
+    return (
+      e.person.toLowerCase().includes(q) ||
+      (e.remarks || '').toLowerCase().includes(q) ||
+      String(e.amount).includes(q)
+    );
   });
 
   return (
@@ -161,7 +165,7 @@ export default function Debts() {
 
         <div className="filters-bar">
           <input
-            placeholder="Search by person or remarks…"
+            placeholder="Search by person, remarks, or amount…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

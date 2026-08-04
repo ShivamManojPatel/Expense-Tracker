@@ -437,6 +437,7 @@ label {
   font-weight: 600;
   font-size: 14.5px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filters-bar {
@@ -592,15 +593,17 @@ label {
 }
 
 .icon-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: var(--paper-line);
+  border: 1px solid var(--paper-line);
+  border-radius: 6px;
+  font-size: 16px;
   color: var(--text-secondary);
-  padding: 4px;
+  padding: 6px 8px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
-.icon-btn:hover { color: var(--amber); }
+.icon-btn:hover { color: var(--amber); border-color: var(--amber); background: var(--amber-light); }
 
 .empty-state {
   text-align: center;
