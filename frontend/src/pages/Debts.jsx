@@ -12,6 +12,8 @@ export default function Debts() {
   const [modalMode, setModalMode] = useState(null);
   const [modalPreset, setModalPreset] = useState(null);
   const [personFilter, setPersonFilter] = useState('All');
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
 
   const load = async () => {
     const [sumRes, entRes] = await Promise.all([
@@ -29,18 +31,29 @@ export default function Debts() {
   }, [personFilter]);
 
   const handleSave = async (data) => {
-    if (modalMode && modalMode !== 'add') {
-      await api.put(`/debts/${modalMode._id}`, data);
-    } else {
-      await api.post('/debts', data);
+    setError('');
+    try {
+      if (modalMode && modalMode !== 'add') {
+        await api.put(`/debts/${modalMode._id}`, data);
+      } else {
+        await api.post('/debts', data);
+      }
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save this entry.');
+      throw err; // keep the modal open so the person can retry
     }
-    await load();
   };
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this debt entry?')) return;
-    await api.delete(`/debts/${id}`);
-    await load();
+    setError('');
+    try {
+      await api.delete(`/debts/${id}`);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not delete this entry.');
+    }
   };
 
   const openModal = (mode, preset) => {
@@ -51,6 +64,12 @@ export default function Debts() {
   const totalBorrowed = summary.reduce((s, p) => s + p.borrowed, 0);
   const totalRepaid = summary.reduce((s, p) => s + p.repaid, 0);
   const totalOutstanding = summary.reduce((s, p) => s + Math.max(0, p.outstanding), 0);
+
+  const visibleEntries = entries.filter((e) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return e.person.toLowerCase().includes(q) || (e.remarks || '').toLowerCase().includes(q);
+  });
 
   return (
     <div>
@@ -63,6 +82,8 @@ export default function Debts() {
           <i className="ti ti-plus"></i> Add entry
         </button>
       </div>
+
+      {error && <div className="error-banner" style={{ marginBottom: 16 }}>{error}</div>}
 
       <div className="metric-grid">
         <div className="metric-card">
@@ -136,7 +157,15 @@ export default function Debts() {
       <div className="card">
         <div className="page-header" style={{ marginBottom: 12 }}>
           <div className="section-title" style={{ marginBottom: 0 }}>History</div>
-          <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={{ maxWidth: 200 }}>
+        </div>
+
+        <div className="filters-bar">
+          <input
+            placeholder="Search by person or remarks…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
             <option value="All">All people</option>
             {summary.map((p) => (
               <option key={p.person} value={p.person}>{p.person}</option>
@@ -144,13 +173,13 @@ export default function Debts() {
           </select>
         </div>
 
-        {entries.length === 0 ? (
+        {visibleEntries.length === 0 ? (
           <div className="empty-state">
             <i className="ti ti-receipt-2" aria-hidden="true"></i>
             No entries match this filter.
           </div>
         ) : (
-          entries.map((e) => (
+          visibleEntries.map((e) => (
             <div className="tx-row" key={e._id}>
               <div className={`tx-icon ${e.type === 'repaid' ? 'tx-icon-income' : ''}`}>
                 <i className={`ti ${e.type === 'repaid' ? 'ti-check' : 'ti-hand-stop'}`}></i>

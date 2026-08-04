@@ -18,7 +18,13 @@ export default function DebtModal({ initial, defaultType, defaultPerson, onClose
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({ ...form, amount: Number(form.amount) });
+      await onSave({
+        person: form.person,
+        type: form.type,
+        amount: Number(form.amount),
+        remarks: form.remarks,
+        date: form.date
+      });
       onClose();
     } finally {
       setSaving(false);
