@@ -9,7 +9,12 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
       : {
           type: defaultType || 'expense',
           amount: '',
-          category: categories[0]?.name || '',
+          category:
+            defaultType === 'saving_deposit' || defaultType === 'saving_withdrawal'
+              ? 'Savings'
+              : categories.find(
+                  (c) => (c.appliesTo || 'both') === 'both' || c.appliesTo === (defaultType || 'expense')
+                )?.name || categories[0]?.name || '',
           note: '',
           tagsText: '',
           paymentMethod: 'Card',
@@ -22,6 +27,28 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
   const [saving, setSaving] = useState(false);
 
   const isSavingType = form.type === 'saving_deposit' || form.type === 'saving_withdrawal';
+
+  const categoriesFor = (type) =>
+    categories.filter((c) => {
+      const scope = c.appliesTo || 'both';
+      return scope === 'both' || scope === type;
+    });
+
+  const visibleCategories = categoriesFor(form.type);
+
+  const switchType = (type) => {
+    const isSaving = type === 'saving_deposit' || type === 'saving_withdrawal';
+    if (isSaving) {
+      setForm({ ...form, type, category: 'Savings' });
+      return;
+    }
+    const stillValid = categoriesFor(type).some((c) => c.name === form.category);
+    setForm({
+      ...form,
+      type,
+      category: stillValid ? form.category : categoriesFor(type)[0]?.name || ''
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,21 +85,21 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
             <button
               type="button"
               className={`toggle-btn ${form.type === 'expense' ? 'active-expense' : ''}`}
-              onClick={() => setForm({ ...form, type: 'expense' })}
+              onClick={() => switchType('expense')}
             >
               Expense
             </button>
             <button
               type="button"
               className={`toggle-btn ${form.type === 'income' ? 'active-income' : ''}`}
-              onClick={() => setForm({ ...form, type: 'income' })}
+              onClick={() => switchType('income')}
             >
               Income
             </button>
             <button
               type="button"
               className={`toggle-btn ${isSavingType ? 'active-income' : ''}`}
-              onClick={() => setForm({ ...form, type: 'saving_deposit' })}
+              onClick={() => switchType('saving_deposit')}
             >
               Savings
             </button>
@@ -112,18 +139,20 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
           </div>
 
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="category">Category</label>
-              <select
-                id="category"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              >
-                {categories.map((c) => (
-                  <option key={c._id} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+            {!isSavingType && (
+              <div className="field">
+                <label htmlFor="category">Category</label>
+                <select
+                  id="category"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  {visibleCategories.map((c) => (
+                    <option key={c._id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="field">
               <label htmlFor="date">Date</label>
               <input

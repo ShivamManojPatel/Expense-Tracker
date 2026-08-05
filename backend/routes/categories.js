@@ -18,11 +18,43 @@ router.get('/', async (req, res) => {
 // POST /api/categories
 router.post('/', async (req, res) => {
   try {
-    const { name, color, icon } = req.body;
+    const { name, color, icon, appliesTo } = req.body;
     if (!name) return res.status(400).json({ message: 'Name is required' });
+    if (appliesTo && !['expense', 'income', 'both'].includes(appliesTo)) {
+      return res.status(400).json({ message: 'appliesTo must be expense, income, or both' });
+    }
 
-    const category = await Category.create({ user: req.user._id, name, color, icon });
+    const category = await Category.create({ user: req.user._id, name, color, icon, appliesTo });
     res.status(201).json(category);
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'That category already exists' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/categories/:id
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, color, icon, appliesTo } = req.body;
+    if (!name) return res.status(400).json({ message: 'Name is required' });
+    if (appliesTo && !['expense', 'income', 'both'].includes(appliesTo)) {
+      return res.status(400).json({ message: 'appliesTo must be expense, income, or both' });
+    }
+
+    const update = { name };
+    if (color !== undefined) update.color = color;
+    if (icon !== undefined) update.icon = icon;
+    if (appliesTo !== undefined) update.appliesTo = appliesTo;
+
+    const category = await Category.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
+      update,
+      { new: true, runValidators: true }
+    );
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    res.json(category);
   } catch (err) {
     if (err.code === 11000) {
       return res.status(400).json({ message: 'That category already exists' });

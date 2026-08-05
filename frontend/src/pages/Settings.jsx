@@ -20,6 +20,9 @@ export default function Settings() {
   const [categories, setCategories] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [newCategory, setNewCategory] = useState('');
+  const [newCategoryAppliesTo, setNewCategoryAppliesTo] = useState('both');
+  const [catError, setCatError] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null); // { _id, name, appliesTo }
   const [budgetForm, setBudgetForm] = useState({ category: '', monthlyLimit: '' });
   const [expenses, setExpenses] = useState([]);
 
@@ -46,8 +49,11 @@ export default function Settings() {
     setCategories(catRes.data);
     setBudgets(budRes.data);
     setExpenses(expRes.data);
-    if (!budgetForm.category && catRes.data[0]) {
-      setBudgetForm((f) => ({ ...f, category: catRes.data[0].name }));
+    if (!budgetForm.category) {
+      const firstBudgetable = catRes.data.find((c) => c.appliesTo !== 'income');
+      if (firstBudgetable) {
+        setBudgetForm((f) => ({ ...f, category: firstBudgetable.name }));
+      }
     }
   };
 
@@ -87,12 +93,43 @@ export default function Settings() {
   };
 
   // --- Categories ---
+  // --- Categories ---
   const addCategory = async (e) => {
     e.preventDefault();
+    setCatError('');
     if (!newCategory.trim()) return;
-    await api.post('/categories', { name: newCategory.trim() });
-    setNewCategory('');
-    await load();
+    try {
+      await api.post('/categories', { name: newCategory.trim(), appliesTo: newCategoryAppliesTo });
+      setNewCategory('');
+      setNewCategoryAppliesTo('both');
+      await load();
+    } catch (err) {
+      setCatError(err.response?.data?.message || 'Could not add category.');
+    }
+  };
+
+  const startEditCategory = (c) => {
+    setCatError('');
+    setEditingCategory({ _id: c._id, name: c.name, appliesTo: c.appliesTo || 'both' });
+  };
+
+  const cancelEditCategory = () => {
+    setEditingCategory(null);
+  };
+
+  const saveEditCategory = async (e) => {
+    e.preventDefault();
+    if (!editingCategory.name.trim()) return;
+    try {
+      await api.put(`/categories/${editingCategory._id}`, {
+        name: editingCategory.name.trim(),
+        appliesTo: editingCategory.appliesTo
+      });
+      setEditingCategory(null);
+      await load();
+    } catch (err) {
+      setCatError(err.response?.data?.message || 'Could not update category.');
+    }
   };
 
   const deleteCategory = async (id) => {
@@ -259,30 +296,70 @@ export default function Settings() {
         {/* Categories */}
         <div className="card">
           <div className="section-title">Categories</div>
+          {catError && <div className="error-banner">{catError}</div>}
           <form onSubmit={addCategory} className="settings-inline-form">
             <input
               placeholder="New category name"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
             />
+            <select
+              value={newCategoryAppliesTo}
+              onChange={(e) => setNewCategoryAppliesTo(e.target.value)}
+              aria-label="Applies to"
+            >
+              <option value="both">Both</option>
+              <option value="expense">Expense only</option>
+              <option value="income">Income only</option>
+            </select>
             <button className="btn btn-primary" type="submit">
               <i className="ti ti-plus"></i> Add
             </button>
           </form>
 
-          {categories.map((c) => (
-            <div className="tx-row" key={c._id}>
-              <div className="tx-icon" style={{ background: 'var(--amber-light)', color: 'var(--amber)' }}>
-                <i className={`ti ${c.icon || 'ti-tag'}`}></i>
-              </div>
-              <div className="tx-main">
-                <div className="tx-title">{c.name}</div>
-              </div>
-              <button className="icon-btn" onClick={() => deleteCategory(c._id)} aria-label="Delete category">
-                <i className="ti ti-trash"></i>
-              </button>
-            </div>
-          ))}
+          {categories.map((c) =>
+  editingCategory?._id === c._id ? (
+    <form key={c._id} onSubmit={saveEditCategory} className="settings-inline-form" style={{ marginBottom: 8 }}>
+      <input
+        value={editingCategory.name}
+        onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+        autoFocus
+      />
+      <select
+        value={editingCategory.appliesTo}
+        onChange={(e) => setEditingCategory({ ...editingCategory, appliesTo: e.target.value })}
+      >
+        <option value="both">Both</option>
+        <option value="expense">Expense only</option>
+        <option value="income">Income only</option>
+      </select>
+      <button className="btn btn-primary" type="submit">
+        <i className="ti ti-check"></i> Save
+      </button>
+      <button className="btn" type="button" onClick={cancelEditCategory}>
+        <i className="ti ti-x"></i> Cancel
+      </button>
+    </form>
+  ) : (
+    <div className="tx-row" key={c._id}>
+      <div className="tx-icon" style={{ background: 'var(--amber-light)', color: 'var(--amber)' }}>
+        <i className={`ti ${c.icon || 'ti-tag'}`}></i>
+      </div>
+      <div className="tx-main">
+        <div className="tx-title">{c.name}</div>
+        <div className="tx-meta">
+          {c.appliesTo === 'expense' ? 'Expense only' : c.appliesTo === 'income' ? 'Income only' : 'Both'}
+        </div>
+      </div>
+      <button className="icon-btn" onClick={() => startEditCategory(c)} aria-label="Edit category">
+        <i className="ti ti-pencil"></i>
+      </button>
+      <button className="icon-btn" onClick={() => deleteCategory(c._id)} aria-label="Delete category">
+        <i className="ti ti-trash"></i>
+      </button>
+    </div>
+  )
+)}
         </div>
 
         {/* Budgets */}
@@ -290,9 +367,11 @@ export default function Settings() {
           <div className="section-title">Monthly budgets</div>
           <form onSubmit={saveBudget} className="field-row" style={{ marginBottom: 12 }}>
             <select value={budgetForm.category} onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}>
-              {categories.map((c) => (
-                <option key={c._id} value={c.name}>{c.name}</option>
-              ))}
+              {categories
+                .filter((c) => c.appliesTo !== 'income')
+                .map((c) => (
+                  <option key={c._id} value={c.name}>{c.name}</option>
+                ))}
             </select>
             <input
               type="number"

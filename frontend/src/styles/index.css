@@ -1001,11 +1001,24 @@ label {
 
 .settings-inline-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.settings-inline-form input { flex: 1; }
+.settings-inline-form input {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+.settings-inline-form select {
+  flex: 0 1 140px;
+  min-width: 120px;
+}
+
+.settings-inline-form button {
+  flex: 0 0 auto;
+}
 
 .btn-danger-outline {
   border-color: rgba(184, 81, 65, 0.4);
