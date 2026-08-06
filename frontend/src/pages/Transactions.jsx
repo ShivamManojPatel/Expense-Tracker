@@ -25,8 +25,7 @@ export default function Transactions() {
         params: {
           category: filters.category,
           type: filters.type,
-          search: filters.search,
-          tag: filters.tag || undefined
+          search: filters.search
         }
       }),
       api.get('/categories')
@@ -39,7 +38,7 @@ export default function Transactions() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [filters.category, filters.type, filters.search]);
 
   const handleSave = async (data) => {
     if (modalMode && modalMode !== 'add') {
@@ -56,7 +55,14 @@ export default function Transactions() {
     await load();
   };
 
-  const net = expenses.reduce((sum, e) => {
+  // Tag filtering happens client-side (not sent to the server) so the tag chip row
+  // always reflects every tag among the category/type/search-filtered transactions,
+  // not just the ones matching whichever tag is currently selected.
+  const tagFiltered = filters.tag
+    ? expenses.filter((e) => (e.tags || []).includes(filters.tag))
+    : expenses;
+
+  const net = tagFiltered.reduce((sum, e) => {
     if (e.type === 'income') return sum + e.amount;
     if (e.type === 'expense') return sum - e.amount;
     return sum;
@@ -68,7 +74,7 @@ export default function Transactions() {
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
-          <p>{expenses.length} entries · net {formatMoney(net, user?.currency)}</p>
+          <p>{tagFiltered.length} entries · net {formatMoney(net, user?.currency)}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setModalMode('add')}>
           <i className="ti ti-plus"></i> Add transaction
@@ -119,13 +125,13 @@ export default function Transactions() {
       <div className="card">
         {loading ? (
           <div className="loading-note">Loading…</div>
-        ) : expenses.length === 0 ? (
+        ) : tagFiltered.length === 0 ? (
           <div className="empty-state">
             <i className="ti ti-receipt-2" aria-hidden="true"></i>
             No transactions match these filters.
           </div>
         ) : (
-          expenses.map((e) => {
+          tagFiltered.map((e) => {
             const meta = TYPE_META[e.type] || TYPE_META.expense;
             return (
               <div className="tx-row" key={e._id}>

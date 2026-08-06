@@ -7,13 +7,17 @@ const { protect } = require('../middleware/auth');
 
 router.use(protect);
 
+// Escape regex special characters so search terms like "(", "+", "coffee (work)"
+// don't throw an invalid-regex error and 500 the request.
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // GET /api/search?q=coffee
 router.get('/', async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (!q) return res.json({ expenses: [], subscriptions: [], goals: [] });
 
-    const rx = { $regex: q, $options: 'i' };
+    const rx = { $regex: escapeRegex(q), $options: 'i' };
 
     const [expenses, subscriptions, goals] = await Promise.all([
       Expense.find({

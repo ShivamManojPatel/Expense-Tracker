@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
-import { formatMoney } from '../utils/format';
+import { formatMoney, daysUntilBilling } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 
 export default function NotificationBell() {
@@ -12,7 +12,7 @@ export default function NotificationBell() {
   const load = async () => {
     const [budRes, subRes] = await Promise.all([api.get('/budgets'), api.get('/subscriptions')]);
     const list = [];
-    const today = new Date().getDate();
+    const now = new Date();
 
     budRes.data.forEach((b) => {
       const pct = b.monthlyLimit ? (b.spent / b.monthlyLimit) * 100 : 0;
@@ -24,7 +24,7 @@ export default function NotificationBell() {
     });
 
     subRes.data.filter((s) => s.active).forEach((s) => {
-      const daysAway = (s.billingDay - today + 31) % 31;
+      const daysAway = daysUntilBilling(s.billingDay, now);
       if (daysAway <= 3) {
         list.push({ type: 'info', text: `${s.name} renews ${daysAway === 0 ? 'today' : 'in ' + daysAway + ' day' + (daysAway > 1 ? 's' : '')}` });
       }

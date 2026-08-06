@@ -12,8 +12,11 @@ router.get('/', async (req, res) => {
     const budgets = await Budget.find({ user: req.user._id });
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    // Expense dates are stored as UTC midnight of the picked calendar day, so the
+    // month boundaries must be computed in UTC too — not the server's local time
+    // (which only happens to line up today because Render's clock defaults to UTC).
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59));
 
     const spendAgg = await Expense.aggregate([
       { $match: { user: req.user._id, type: 'expense', date: { $gte: monthStart, $lte: monthEnd } } },

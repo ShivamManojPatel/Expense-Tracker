@@ -39,13 +39,13 @@ export default function Savings() {
   const now = new Date();
   const monthTx = savingTx.filter((e) => {
     const d = new Date(e.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return d.getUTCMonth() === now.getMonth() && d.getUTCFullYear() === now.getFullYear();
   });
   const monthDeposits = monthTx.filter((e) => e.type === 'saving_deposit').reduce((s, e) => s + e.amount, 0);
   const monthWithdrawals = monthTx.filter((e) => e.type === 'saving_withdrawal').reduce((s, e) => s + e.amount, 0);
 
   const monthIncome = expenses
-    .filter((e) => e.type === 'income' && new Date(e.date).getMonth() === now.getMonth() && new Date(e.date).getFullYear() === now.getFullYear())
+    .filter((e) => e.type === 'income' && new Date(e.date).getUTCMonth() === now.getMonth() && new Date(e.date).getUTCFullYear() === now.getFullYear())
     .reduce((s, e) => s + e.amount, 0);
   const savingsRate = monthIncome > 0 ? (monthDeposits / monthIncome) * 100 : null;
 
@@ -55,7 +55,7 @@ export default function Savings() {
     savingTx.forEach((e) => {
       running += e.type === 'saving_deposit' ? e.amount : -e.amount;
       const d = new Date(e.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
       byMonth[key] = running;
     });
     return Object.entries(byMonth)

@@ -204,9 +204,19 @@ h1, h2, h3 {
     background: var(--green-deep);
     border-top: 1px solid #101a29;
     padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
-    justify-content: space-around;
+    gap: 4px;
     z-index: 40;
+    /* 8 nav items don't all fit on narrower phones (e.g. iPhone 16 Plus at 430px) —
+       flex items won't shrink below their content's natural size, so without scrolling
+       the row overflows off the right edge and the last tab(s) become unreachable.
+       NOTE: justify-content: space-around/between breaks overflow-x scrolling on
+       Safari/iOS — it computes the scrollable width from the justified layout instead
+       of the actual content, so the row silently refuses to scroll. Use gap instead. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .mobile-nav::-webkit-scrollbar { display: none; }
   .mobile-nav a {
     display: flex;
     flex-direction: column;
@@ -217,6 +227,8 @@ h1, h2, h3 {
     font-size: 10.5px;
     padding: 4px 8px;
     border-radius: 8px;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   .mobile-nav a i { font-size: 20px; }
   .mobile-nav a.active { color: var(--amber); }

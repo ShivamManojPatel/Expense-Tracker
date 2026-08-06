@@ -27,7 +27,7 @@ export default function Analytics() {
     const map = {};
     spendOnly.forEach((e) => {
       const d = new Date(e.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
       map[key] = (map[key] || 0) + e.amount;
     });
     return Object.entries(map)

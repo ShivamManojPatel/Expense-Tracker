@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { formatMoney, formatDate } from '../utils/format';
+import { formatMoney, formatDate, daysUntilBilling } from '../utils/format';
 import ExpenseModal from '../components/ExpenseModal';
 import SubscriptionCalendar from '../components/SubscriptionCalendar';
 import AIInsights from '../components/AIInsights';
@@ -42,7 +42,10 @@ export default function Dashboard() {
     () =>
       expenses.filter((e) => {
         const d = new Date(e.date);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        // Transaction dates are stored as UTC midnight of the picked calendar day,
+        // so read them back with UTC getters — "now" stays local since that's the
+        // real current moment for the user.
+        return d.getUTCMonth() === now.getMonth() && d.getUTCFullYear() === now.getFullYear();
       }),
     [expenses]
   );
@@ -72,9 +75,8 @@ export default function Dashboard() {
       else if (pct >= 80) list.push({ type: 'warn', text: `${b.category} budget is ${Math.round(pct)}% used` });
     });
     subs.filter((s) => s.active).forEach((s) => {
-      const today = now.getDate();
-      const daysAway = (s.billingDay - today + 31) % 31;
-      if (daysAway <= 3) list.push({ type: 'info', text: `${s.name} renews in ${daysAway === 0 ? 'today' : daysAway + ' day' + (daysAway > 1 ? 's' : '')}` });
+      const daysAway = daysUntilBilling(s.billingDay, now);
+      if (daysAway <= 3) list.push({ type: 'info', text: `${s.name} renews ${daysAway === 0 ? 'today' : 'in ' + daysAway + ' day' + (daysAway > 1 ? 's' : '')}` });
     });
     return list;
   }, [budgets, subs]);

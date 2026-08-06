@@ -34,7 +34,17 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
       return scope === 'both' || scope === type;
     });
 
-  const visibleCategories = categoriesFor(form.type);
+  const visibleCategories = (() => {
+    const scoped = categoriesFor(form.type);
+    // If the transaction's current category isn't in the scoped list (e.g. it was
+    // recategorized as expense/income-only after this transaction was saved),
+    // keep it selectable so the dropdown doesn't silently show a different category.
+    if (form.category && !scoped.some((c) => c.name === form.category)) {
+      const existing = categories.find((c) => c.name === form.category);
+      if (existing) return [existing, ...scoped];
+    }
+    return scoped;
+  })();
 
   const switchType = (type) => {
     const isSaving = type === 'saving_deposit' || type === 'saving_withdrawal';
