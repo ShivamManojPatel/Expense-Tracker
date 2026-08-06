@@ -1,13 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell
 } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney } from '../utils/format';
 
-const CHART_COLORS = ['#3B6D11', '#378ADD', '#D85A30', '#7F77DD', '#D4537E', '#BA7517', '#1D9E75', '#888780'];
+// A moody, "vault ledger" categorical palette — brass, verdigris, rust, slate, plum,
+// olive, steel, leather — deliberately distinct from the app's semantic green/coral
+// (income/expense) so pie slices don't get misread as good/bad signals.
+const CHART_COLORS = ['#CBA24D', '#6E8B7E', '#8C5A3C', '#6B7280', '#9C7A9C', '#7A8C4C', '#4C6B8C', '#A67C52'];
+
+function ChartTooltip({ active, payload, label, currency }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">{payload[0].payload.name || label}</div>
+      <div className="chart-tooltip-value">{formatMoney(payload[0].value, currency)}</div>
+    </div>
+  );
+}
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -50,12 +63,16 @@ export default function Analytics() {
       .sort((a, b) => b.value - a.value);
   }, [spendOnly]);
 
+  const categoryTotal = byCategory.reduce((s, c) => s + c.value, 0);
+
   const byPaymentMethod = useMemo(() => {
     const map = {};
     spendOnly.forEach((e) => {
       map[e.paymentMethod] = (map[e.paymentMethod] || 0) + e.amount;
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => b.value - a.value);
   }, [spendOnly]);
 
   const insights = useMemo(() => {
@@ -127,12 +144,18 @@ export default function Analytics() {
         <div className="section-title">Last 6 months</div>
         <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byMonth}>
+            <BarChart data={byMonth} barCategoryGap="32%">
+              <defs>
+                <linearGradient id="barBrass" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#DBAF57" />
+                  <stop offset="100%" stopColor="#8C7A3D" />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--paper-line)" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v) => formatMoney(v, user?.currency)} />
-              <Bar dataKey="total" fill="#3B6D11" radius={[4, 4, 0, 0]} />
+              <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={36} />
+              <Tooltip content={<ChartTooltip currency={user?.currency} />} cursor={{ fill: 'var(--amber-light)' }} />
+              <Bar dataKey="total" fill="url(#barBrass)" radius={[5, 5, 0, 0]} maxBarSize={44} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -141,18 +164,40 @@ export default function Analytics() {
       <div className="two-col">
         <div className="card">
           <div className="section-title">By category</div>
-          <div style={{ height: 260 }}>
+          <div className="pie-wrap" style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                <Pie
+                  data={byCategory}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={62}
+                  outerRadius={92}
+                  paddingAngle={3}
+                  stroke="var(--paper-raised)"
+                  strokeWidth={2}
+                >
                   {byCategory.map((entry, i) => (
                     <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v) => formatMoney(v, user?.currency)} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Tooltip content={<ChartTooltip currency={user?.currency} />} />
               </PieChart>
             </ResponsiveContainer>
+            <div className="pie-center-label">
+              <div className="pie-center-value">{formatMoney(categoryTotal, user?.currency)}</div>
+              <div className="pie-center-caption">Total</div>
+            </div>
+          </div>
+          <div className="chart-legend">
+            {byCategory.slice(0, 6).map((c, i) => (
+              <div className="chart-legend-item" key={c.name}>
+                <span className="chart-legend-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="chart-legend-name">{c.name}</span>
+                <span className="chart-legend-value">{formatMoney(c.value, user?.currency)}</span>
+                <span className="chart-legend-pct">{categoryTotal > 0 ? Math.round((c.value / categoryTotal) * 100) : 0}%</span>
+              </div>
+            ))}
           </div>
         </div>
 

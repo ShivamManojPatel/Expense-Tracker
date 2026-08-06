@@ -203,7 +203,7 @@ export default function Dashboard() {
 
               <div className="card">
                 <div className="section-title">This month's subscriptions</div>
-                <SubscriptionCalendar monthDate={now} subscriptions={subs} />
+                <SubscriptionCalendar monthDate={now} subscriptions={subs} showTooltip currency={user?.currency} />
               </div>
             </div>
           </div>

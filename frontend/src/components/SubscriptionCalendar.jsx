@@ -1,6 +1,11 @@
+import { formatMoney } from '../utils/format';
+
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function SubscriptionCalendar({ monthDate, subscriptions }) {
+// showTooltip: renders a styled hover popup with that day's subscription details.
+// Only passed true from the Dashboard widget — the Subscriptions page calendar
+// keeps the plain browser title tooltip instead.
+export default function SubscriptionCalendar({ monthDate, subscriptions, showTooltip = false, currency }) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
   const firstDow = new Date(year, month, 1).getDay();
@@ -34,9 +39,25 @@ export default function SubscriptionCalendar({ monthDate, subscriptions }) {
             <div className={`cal-cell${isCurrentMonth && day === today.getDate() ? ' today' : ''}`} key={day}>
               <div className="cal-daynum">{day}</div>
               {subsByDay[day] && (
-                <div className="cal-dot-wrap" title={subsByDay[day].map((s) => s.name).join(', ')}>
+                <div
+                  className="cal-dot-wrap"
+                  title={showTooltip ? undefined : subsByDay[day].map((s) => s.name).join(', ')}
+                >
                   {subsByDay[day].map((s) => (
                     <span className="cal-dot" key={s._id}></span>
+                  ))}
+                </div>
+              )}
+              {showTooltip && subsByDay[day] && (
+                <div className="cal-tooltip">
+                  <div className="cal-tooltip-date">
+                    {monthDate.toLocaleDateString(undefined, { month: 'short' })} {day}
+                  </div>
+                  {subsByDay[day].map((s) => (
+                    <div className="cal-tooltip-row" key={s._id}>
+                      <span>{s.name}</span>
+                      <span>{formatMoney(s.amount, currency)}</span>
+                    </div>
                   ))}
                 </div>
               )}

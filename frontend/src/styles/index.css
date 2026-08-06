@@ -490,6 +490,103 @@ label {
 .budget-fill.over { background: var(--coral); }
 .budget-fill.warn { background: #C9822F; }
 
+/* ---------- Charts (Analytics) ---------- */
+.chart-tooltip {
+  background: var(--paper-raised);
+  border: 1px solid var(--paper-line);
+  border-top: 2px solid var(--amber);
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-card);
+  font-size: 12.5px;
+}
+
+.chart-tooltip-label {
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  margin-bottom: 3px;
+}
+
+.chart-tooltip-value {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.pie-wrap {
+  position: relative;
+}
+
+.pie-center-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.pie-center-label .pie-center-value {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.pie-center-label .pie-center-caption {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.chart-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2.5px;
+  flex-shrink: 0;
+}
+
+.chart-legend-name {
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-legend-value {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+
+.chart-legend-pct {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 11px;
+  width: 34px;
+  text-align: right;
+}
+
 /* ---------- Calendar ---------- */
 .cal-grid {
   display: grid;
@@ -551,6 +648,55 @@ label {
   font-size: 12.5px;
   color: var(--text-secondary);
 }
+
+/* Hover popup — only rendered by the Dashboard's calendar widget (showTooltip prop),
+   not the Subscriptions page one, which keeps the plain browser title tooltip. */
+.cal-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  min-width: 150px;
+  background: var(--paper-raised);
+  border: 1px solid var(--paper-line);
+  border-top: 2px solid var(--amber);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+  text-align: left;
+}
+
+.cal-cell:hover .cal-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.cal-cell:hover { z-index: 5; }
+
+.cal-tooltip-date {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--amber);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.cal-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.cal-tooltip-row span:first-child { color: var(--text-secondary); }
+.cal-tooltip-row span:last-child { font-family: var(--font-mono); color: var(--text-primary); margin-left: 10px; }
 
 /* ---------- Chips ---------- */
 .chip {

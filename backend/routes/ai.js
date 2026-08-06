@@ -11,7 +11,75 @@ router.use(protect);
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
 
-// GET /api/ai/insights — locally generated spending suggestions from the last 3 months, via Ollama
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+// Uses Groq's cloud API whenever a key is configured (works everywhere, including
+// the deployed Render backend). Falls back to local Ollama when no key is set —
+// e.g. for local dev without touching any cloud service.
+async function generateSuggestions(prompt) {
+  if (GROQ_API_KEY) {
+    let response;
+    try {
+      response = await fetch(GROQ_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.6
+        })
+      });
+    } catch (fetchErr) {
+      const err = new Error(`Could not reach Groq: ${fetchErr.message}`);
+      err.status = 502;
+      throw err;
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      const err = new Error(`Groq request failed (${response.status}): ${errText}`);
+      err.status = 502;
+      throw err;
+    }
+
+    const data = await response.json();
+    return (data.choices?.[0]?.message?.content || '').trim();
+  }
+
+  // No GROQ_API_KEY configured — fall back to local Ollama.
+  let response;
+  try {
+    response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false })
+    });
+  } catch (fetchErr) {
+    const err = new Error(
+      `No GROQ_API_KEY set, and could not reach Ollama at ${OLLAMA_URL} either. Set GROQ_API_KEY in your environment, or make sure Ollama is installed and running locally (try "ollama run ${OLLAMA_MODEL}" once in a terminal to confirm).`
+    );
+    err.status = 502;
+    throw err;
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    const err = new Error(`Ollama request failed: ${errText}`);
+    err.status = 502;
+    throw err;
+  }
+
+  const data = await response.json();
+  return (data.response || '').trim();
+}
+
+// GET /api/ai/insights — spending suggestions from the last 3 months, via Groq (if
+// GROQ_API_KEY is set) or local Ollama otherwise
 router.get('/insights', async (req, res) => {
   try {
     const threeMonthsAgo = new Date();
@@ -50,30 +118,10 @@ Currency: ${summary.currency}
 Data (JSON):
 ${JSON.stringify(summary)}`;
 
-    let response;
-    try {
-      response = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false })
-      });
-    } catch (fetchErr) {
-      return res.status(502).json({
-        message: `Could not reach Ollama at ${OLLAMA_URL}. Make sure Ollama is installed and running (it starts automatically after install — try running "ollama run ${OLLAMA_MODEL}" once in a terminal to confirm).`
-      });
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(502).json({ message: `Ollama request failed: ${errText}` });
-    }
-
-    const data = await response.json();
-    const text = (data.response || '').trim() || 'No suggestions available right now.';
-
+    const text = (await generateSuggestions(prompt)) || 'No suggestions available right now.';
     res.json({ suggestions: text });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status || 500).json({ message: err.message });
   }
 });
 
