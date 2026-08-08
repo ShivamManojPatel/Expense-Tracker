@@ -92,8 +92,19 @@ h1, h2, h3 {
   z-index: 30;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Sidebar (with its own logout button) is hidden below 860px, so this is the only
+   always-visible logout control on mobile — shown regardless of which tab you're on. */
+.mobile-logout-btn { display: none; }
+
 @media (max-width: 860px) {
-  .topbar { padding: 12px 1rem; }
+  .mobile-logout-btn { display: inline-flex; }
 }
 
 .main-content {
@@ -116,6 +127,14 @@ h1, h2, h3 {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  /* Without this, the sidebar stretches to match .content-col's height (default
+     flexbox align-items: stretch) — on a long page that drags its background
+     down the whole scroll length. Pin it to the viewport and scroll internally
+     instead, like every other app sidebar. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-brand {

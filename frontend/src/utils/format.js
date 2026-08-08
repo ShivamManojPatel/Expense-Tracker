@@ -41,3 +41,28 @@ export function daysUntilBilling(billingDay, today = new Date()) {
 
   return Math.round((target - todayMidnight) / 86400000);
 }
+
+// Lightweight, dependency-free "Browser on OS" label for a session's stored
+// user-agent string, used on the Settings > Active sessions list.
+export function describeDevice(userAgent) {
+  if (!userAgent) return 'Unknown device';
+  const ua = userAgent;
+
+  let os = 'Unknown OS';
+  if (/ipad/i.test(ua)) os = 'iPad';
+  else if (/iphone/i.test(ua)) os = 'iPhone';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/windows/i.test(ua)) os = 'Windows';
+  else if (/mac os x/i.test(ua)) os = 'Mac';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Unknown browser';
+  if (/edg\//i.test(ua)) browser = 'Edge';
+  else if (/crios\//i.test(ua)) browser = 'Chrome';
+  else if (/fxios\//i.test(ua)) browser = 'Firefox';
+  else if (/chrome\//i.test(ua)) browser = 'Chrome';
+  else if (/firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/safari\//i.test(ua)) browser = 'Safari';
+
+  return `${browser} on ${os}`;
+}

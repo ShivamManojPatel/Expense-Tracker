@@ -48,7 +48,14 @@ export default function Layout() {
       <div className="content-col">
         <header className="topbar">
           <GlobalSearch />
-          <NotificationBell />
+          <div className="topbar-actions">
+            <NotificationBell />
+            {/* Sidebar (with its own logout button) is hidden below 860px, so this
+                is the only always-visible logout control on mobile — see .mobile-logout-btn */}
+            <button className="icon-btn mobile-logout-btn" onClick={logout} aria-label="Log out">
+              <i className="ti ti-logout"></i>
+            </button>
+          </div>
         </header>
 
         <main className="main-content">

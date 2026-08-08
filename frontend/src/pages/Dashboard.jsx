@@ -3,11 +3,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney, formatDate, daysUntilBilling } from '../utils/format';
+import { CHART_COLORS, ChartTooltip } from '../components/ChartTheme';
 import ExpenseModal from '../components/ExpenseModal';
 import SubscriptionCalendar from '../components/SubscriptionCalendar';
 import AIInsights from '../components/AIInsights';
-
-const CHART_COLORS = ['#3B6D11', '#378ADD', '#D85A30', '#7F77DD', '#D4537E', '#BA7517', '#1D9E75', '#888780'];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -64,7 +63,9 @@ export default function Dashboard() {
     monthExpenses.filter((e) => e.type === 'expense').forEach((e) => {
       map[e.category] = (map[e.category] || 0) + e.amount;
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [monthExpenses]);
 
   const alerts = useMemo(() => {
@@ -186,17 +187,30 @@ export default function Dashboard() {
                     No spending yet this month.
                   </div>
                 ) : (
-                  <div style={{ height: 180 }}>
+                  <div className="pie-wrap" style={{ height: 180 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                        <Pie
+                          data={byCategory}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={48}
+                          outerRadius={72}
+                          paddingAngle={3}
+                          stroke="var(--paper-raised)"
+                          strokeWidth={2}
+                        >
                           {byCategory.map((entry, i) => (
                             <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(v) => formatMoney(v, user?.currency)} />
+                        <Tooltip content={<ChartTooltip currency={user?.currency} />} />
                       </PieChart>
                     </ResponsiveContainer>
+                    <div className="pie-center-label">
+                      <div className="pie-center-value">{formatMoney(monthSpend, user?.currency)}</div>
+                      <div className="pie-center-caption">This month</div>
+                    </div>
                   </div>
                 )}
               </div>

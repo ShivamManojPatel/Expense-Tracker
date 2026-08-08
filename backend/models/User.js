@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema(
     pinHash: { type: String, default: null },
     lockedTabs: { type: [String], default: [] },
     resetTokenHash: { type: String, default: null },
-    resetTokenExpiry: { type: Date, default: null }
+    resetTokenExpiry: { type: Date, default: null },
+    monthlyReportEmail: { type: Boolean, default: true }
   },
   { timestamps: true }
 );

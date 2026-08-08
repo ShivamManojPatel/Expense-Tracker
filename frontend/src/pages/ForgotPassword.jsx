@@ -27,7 +27,7 @@ export default function ForgotPassword() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-brand">Reset your password</div>
-        <p className="auth-sub">Enter your account email — the reset link will be printed to your backend server's console (no email is sent).</p>
+        <p className="auth-sub">Enter your account email and we'll send a reset link.</p>
 
         {error && <div className="error-banner">{error}</div>}
         {message && <div className="chip" style={{ marginBottom: 16, display: 'block' }}>{message}</div>}

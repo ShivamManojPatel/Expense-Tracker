@@ -4,7 +4,9 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Category = require('../models/Category');
-const generateToken = require('../utils/generateToken');
+const Session = require('../models/Session');
+const createSession = require('../utils/createSession');
+const sendEmail = require('../utils/sendEmail');
 const { protect } = require('../middleware/auth');
 
 const DEFAULT_CATEGORIES = [
@@ -50,7 +52,8 @@ router.post('/signup', async (req, res) => {
       currency: user.currency,
       hasPin: false,
       lockedTabs: [],
-      token: generateToken(user._id)
+      monthlyReportEmail: user.monthlyReportEmail,
+      token: await createSession(user._id, req)
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -74,7 +77,8 @@ router.post('/login', async (req, res) => {
       currency: user.currency,
       hasPin: !!user.pinHash,
       lockedTabs: user.lockedTabs || [],
-      token: generateToken(user._id)
+      monthlyReportEmail: user.monthlyReportEmail,
+      token: await createSession(user._id, req)
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -89,8 +93,62 @@ router.get('/me', protect, async (req, res) => {
     email: req.user.email,
     currency: req.user.currency,
     hasPin: !!req.user.pinHash,
-    lockedTabs: req.user.lockedTabs || []
+    lockedTabs: req.user.lockedTabs || [],
+    monthlyReportEmail: req.user.monthlyReportEmail
   });
+});
+
+// POST /api/auth/logout — revokes only the session tied to the token used for
+// this request, i.e. signs out this device without touching any others.
+router.post('/logout', protect, async (req, res) => {
+  try {
+    await Session.deleteOne({ user: req.user._id, tokenId: req.sessionId });
+    res.json({ message: 'Logged out' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/auth/sessions — list this user's active/logged-in devices
+router.get('/sessions', protect, async (req, res) => {
+  try {
+    const sessions = await Session.find({ user: req.user._id }).sort({ lastActive: -1 });
+    res.json(
+      sessions.map((s) => ({
+        _id: s._id,
+        userAgent: s.userAgent,
+        ip: s.ip,
+        createdAt: s.createdAt,
+        lastActive: s.lastActive,
+        current: s.tokenId === req.sessionId
+      }))
+    );
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/auth/sessions/:id — revoke one specific session/device. Revoking the
+// current one signs this device out too (its next request will get a 401).
+router.delete('/sessions/:id', protect, async (req, res) => {
+  try {
+    const session = await Session.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!session) return res.status(404).json({ message: 'Session not found' });
+    res.json({ message: 'Session revoked' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/auth/sessions — "log out of all other devices": revokes every
+// session for this user except the one making this request.
+router.delete('/sessions', protect, async (req, res) => {
+  try {
+    const result = await Session.deleteMany({ user: req.user._id, tokenId: { $ne: req.sessionId } });
+    res.json({ message: 'Other sessions revoked', count: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // PUT /api/auth/change-password — while logged in, requires the current password
@@ -109,16 +167,19 @@ router.put('/change-password', protect, async (req, res) => {
     }
     req.user.password = newPassword;
     await req.user.save();
-    res.json({ message: 'Password updated' });
+    // Changing the password is a natural moment to sign out anywhere else this
+    // account might be logged in — keep only the session making this request.
+    await Session.deleteMany({ user: req.user._id, tokenId: { $ne: req.sessionId } });
+    res.json({ message: 'Password updated. You have been signed out on all other devices.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// POST /api/auth/forgot-password — no email service configured, so the reset
-// link is printed to the backend console instead of sent by email. Always
-// responds the same way whether or not the email exists, to avoid leaking
-// which emails have accounts.
+// POST /api/auth/forgot-password — sends a reset link by email if GMAIL_USER/
+// GMAIL_APP_PASSWORD are configured, otherwise falls back to printing it to the
+// backend console. Always responds the same way whether or not the email exists,
+// to avoid leaking which emails have accounts.
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -134,14 +195,22 @@ router.post('/forgot-password', async (req, res) => {
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
       const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
 
-      console.log('\n=== Password reset requested ===');
-      console.log(`User:  ${user.email}`);
-      console.log(`Link:  ${resetLink}`);
-      console.log('Expires in 15 minutes.');
-      console.log('=================================\n');
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your Ledger password',
+        text: `Reset your password: ${resetLink}\n\nThis link expires in 15 minutes. If you didn't request this, you can ignore this email.`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2 style="color: #CBA24D;">Reset your Ledger password</h2>
+            <p>We got a request to reset the password on your Ledger account. This link expires in 15 minutes.</p>
+            <p><a href="${resetLink}" style="display: inline-block; background: #CBA24D; color: #1A1204; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 600;">Reset password</a></p>
+            <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email — your password will stay unchanged.</p>
+          </div>
+        `
+      });
     }
 
-    res.json({ message: 'If that email has an account, a reset link has been printed to the backend server console.' });
+    res.json({ message: 'If that email has an account, a reset link has been sent.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -172,6 +241,10 @@ router.post('/reset-password', async (req, res) => {
     user.resetTokenHash = null;
     user.resetTokenExpiry = null;
     await user.save();
+
+    // A password reset is exactly the moment to assume any existing session could
+    // be the reason the password needed resetting — sign out everywhere.
+    await Session.deleteMany({ user: user._id });
 
     res.json({ message: 'Password reset — you can log in with your new password now.' });
   } catch (err) {
@@ -235,6 +308,17 @@ router.put('/locked-tabs', protect, async (req, res) => {
     req.user.lockedTabs = cleaned;
     await req.user.save();
     res.json({ lockedTabs: cleaned });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/auth/monthly-report-email — opt in/out of the monthly summary email
+router.put('/monthly-report-email', protect, async (req, res) => {
+  try {
+    req.user.monthlyReportEmail = !!req.body.enabled;
+    await req.user.save();
+    res.json({ monthlyReportEmail: req.user.monthlyReportEmail });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { formatMoney } from '../utils/format';
+import { formatMoney, formatDate, describeDevice } from '../utils/format';
 
 const LOCKABLE_TABS = [
   { key: 'transactions', label: 'Transactions' },
@@ -36,6 +36,14 @@ export default function Settings() {
   const [selectedTabs, setSelectedTabs] = useState([]);
   const [tabsMessage, setTabsMessage] = useState('');
 
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState('');
+  const [sessionsMessage, setSessionsMessage] = useState('');
+
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+
   useEffect(() => {
     setSelectedTabs(user?.lockedTabs || []);
   }, [user?.lockedTabs]);
@@ -59,8 +67,21 @@ export default function Settings() {
 
   useEffect(() => {
     load();
+    loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    try {
+      const res = await api.get('/auth/sessions');
+      setSessions(res.data);
+    } catch (err) {
+      setSessionsError(err.response?.data?.message || 'Could not load sessions.');
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
 
   // --- Account ---
   const submitPasswordChange = async (e) => {
@@ -92,7 +113,64 @@ export default function Settings() {
     navigate('/login');
   };
 
-  // --- Categories ---
+  // --- Sessions ---
+  const revokeSession = async (session) => {
+    if (!confirm(session.current ? 'This is your current session — revoking it will sign you out here too. Continue?' : 'Sign out that device?')) return;
+    setSessionsError('');
+    setSessionsMessage('');
+    try {
+      await api.delete(`/auth/sessions/${session._id}`);
+      if (session.current) {
+        // The token this tab is using no longer maps to a live session — clear
+        // local state directly instead of waiting for the next request to 401.
+        logout();
+        navigate('/login');
+        return;
+      }
+      setSessionsMessage('Session revoked.');
+      await loadSessions();
+    } catch (err) {
+      setSessionsError(err.response?.data?.message || 'Could not revoke that session.');
+    }
+  };
+
+  const logoutOtherSessions = async () => {
+    if (!confirm('Sign out every other device? This one stays signed in.')) return;
+    setSessionsError('');
+    setSessionsMessage('');
+    try {
+      const res = await api.delete('/auth/sessions');
+      setSessionsMessage(res.data.count > 0 ? `Signed out ${res.data.count} other device${res.data.count > 1 ? 's' : ''}.` : 'No other devices were signed in.');
+      await loadSessions();
+    } catch (err) {
+      setSessionsError(err.response?.data?.message || 'Could not sign out other devices.');
+    }
+  };
+
+  // --- Monthly report email ---
+  const toggleMonthlyReport = async (enabled) => {
+    setReportMessage('');
+    try {
+      await api.put('/auth/monthly-report-email', { enabled });
+      await refreshUser();
+    } catch (err) {
+      setReportMessage(err.response?.data?.message || 'Could not update that setting.');
+    }
+  };
+
+  const sendTestReport = async () => {
+    setReportMessage('');
+    setReportSending(true);
+    try {
+      const res = await api.post('/reports/send-test');
+      setReportMessage(res.data.message);
+    } catch (err) {
+      setReportMessage(err.response?.data?.message || 'Could not send test report.');
+    } finally {
+      setReportSending(false);
+    }
+  };
+
   // --- Categories ---
   const addCategory = async (e) => {
     e.preventDefault();
@@ -241,6 +319,20 @@ export default function Settings() {
             <span>{user?.currency}</span>
           </div>
 
+          <div className="settings-divider">Monthly report email</div>
+          {reportMessage && <div className="chip" style={{ marginBottom: 12 }}>{reportMessage}</div>}
+          <label className="checkbox-field" style={{ marginBottom: 12 }}>
+            <input
+              type="checkbox"
+              checked={!!user?.monthlyReportEmail}
+              onChange={(e) => toggleMonthlyReport(e.target.checked)}
+            />
+            Email me a spending summary at the start of each month
+          </label>
+          <button className="btn" onClick={sendTestReport} disabled={reportSending}>
+            <i className="ti ti-mail"></i> {reportSending ? 'Sending…' : 'Send me a test report now'}
+          </button>
+
           <div className="settings-divider">Change password</div>
           {pwMessage && <div className="chip" style={{ marginBottom: 12 }}>{pwMessage}</div>}
           {pwError && <div className="error-banner">{pwError}</div>}
@@ -291,6 +383,50 @@ export default function Settings() {
           <button className="btn btn-danger-outline" onClick={handleLogout} style={{ width: '100%', justifyContent: 'center' }}>
             <i className="ti ti-logout"></i> Log out
           </button>
+        </div>
+
+        {/* Active sessions */}
+        <div className="card">
+          <div className="section-title">Active sessions</div>
+          <p className="settings-hint">Devices currently signed in to your account.</p>
+
+          {sessionsMessage && <div className="chip" style={{ marginBottom: 12 }}>{sessionsMessage}</div>}
+          {sessionsError && <div className="error-banner">{sessionsError}</div>}
+
+          {sessionsLoading ? (
+            <div className="loading-note">Loading…</div>
+          ) : sessions.length === 0 ? (
+            <div className="empty-state" style={{ padding: '1rem 0' }}>
+              <i className="ti ti-devices"></i>
+              No active sessions found.
+            </div>
+          ) : (
+            sessions.map((s) => (
+              <div className="tx-row" key={s._id}>
+                <div className="tx-icon" style={{ background: 'var(--amber-light)', color: 'var(--amber)' }}>
+                  <i className="ti ti-device-laptop"></i>
+                </div>
+                <div className="tx-main">
+                  <div className="tx-title">
+                    {describeDevice(s.userAgent)}
+                    {s.current && <span className="chip" style={{ marginLeft: 6 }}>This device</span>}
+                  </div>
+                  <div className="tx-meta">
+                    Last active {formatDate(s.lastActive)}{s.ip ? ` · ${s.ip}` : ''}
+                  </div>
+                </div>
+                <button className="icon-btn" onClick={() => revokeSession(s)} aria-label="Sign out this device">
+                  <i className="ti ti-logout"></i>
+                </button>
+              </div>
+            ))
+          )}
+
+          {sessions.filter((s) => !s.current).length > 0 && (
+            <button className="btn btn-danger-outline" onClick={logoutOtherSessions} style={{ width: '100%', justifyContent: 'center', marginTop: 14 }}>
+              <i className="ti ti-logout-2"></i> Sign out all other devices
+            </button>
+          )}
         </div>
 
         {/* Categories */}
