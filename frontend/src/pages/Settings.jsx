@@ -320,7 +320,7 @@ export default function Settings() {
           </div>
 
           <div className="settings-divider">Monthly report email</div>
-          {reportMessage && <div className="chip" style={{ marginBottom: 12 }}>{reportMessage}</div>}
+          {reportMessage && <div className="success-banner">{reportMessage}</div>}
           <label className="checkbox-field" style={{ marginBottom: 12 }}>
             <input
               type="checkbox"
@@ -334,7 +334,7 @@ export default function Settings() {
           </button>
 
           <div className="settings-divider">Change password</div>
-          {pwMessage && <div className="chip" style={{ marginBottom: 12 }}>{pwMessage}</div>}
+          {pwMessage && <div className="success-banner">{pwMessage}</div>}
           {pwError && <div className="error-banner">{pwError}</div>}
           <form onSubmit={submitPasswordChange}>
             <div className="field">
@@ -390,7 +390,7 @@ export default function Settings() {
           <div className="section-title">Active sessions</div>
           <p className="settings-hint">Devices currently signed in to your account.</p>
 
-          {sessionsMessage && <div className="chip" style={{ marginBottom: 12 }}>{sessionsMessage}</div>}
+          {sessionsMessage && <div className="success-banner">{sessionsMessage}</div>}
           {sessionsError && <div className="error-banner">{sessionsError}</div>}
 
           {sessionsLoading ? (
@@ -555,7 +555,7 @@ export default function Settings() {
           <div className="section-title">Tab lock</div>
           <p className="settings-hint">Set a PIN, then choose which tabs stay hidden until you enter it.</p>
 
-          {pinMessage && <div className="chip" style={{ marginBottom: 12 }}>{pinMessage}</div>}
+          {pinMessage && <div className="success-banner">{pinMessage}</div>}
           {pinError && <div className="error-banner">{pinError}</div>}
 
           <div className="field-row" style={{ marginBottom: 12 }}>
@@ -605,7 +605,7 @@ export default function Settings() {
             <p className="settings-hint">Set a PIN above before you can lock any tabs.</p>
           ) : (
             <>
-              {tabsMessage && <div className="chip" style={{ marginBottom: 12 }}>{tabsMessage}</div>}
+              {tabsMessage && <div className="success-banner">{tabsMessage}</div>}
               <div className="lock-tab-grid">
                 {LOCKABLE_TABS.map((t) => (
                   <label className="checkbox-field lock-tab-option" key={t.key}>

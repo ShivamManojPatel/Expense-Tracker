@@ -7,6 +7,7 @@ import { CHART_COLORS, ChartTooltip } from '../components/ChartTheme';
 import ExpenseModal from '../components/ExpenseModal';
 import SubscriptionCalendar from '../components/SubscriptionCalendar';
 import AIInsights from '../components/AIInsights';
+import AIChat from '../components/AIChat';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -113,7 +114,10 @@ export default function Dashboard() {
       </div>
 
       {tab === 'ai' ? (
-        <AIInsights />
+        <>
+          <AIInsights />
+          <AIChat />
+        </>
       ) : (
         <>
           {alerts.length > 0 && (

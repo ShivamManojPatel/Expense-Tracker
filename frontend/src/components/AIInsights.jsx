@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api/axios';
 
 export default function AIInsights() {
-  const [text, setText] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -11,7 +11,10 @@ export default function AIInsights() {
     setError('');
     try {
       const res = await api.get('/ai/insights');
-      setText(res.data.suggestions);
+      // Backend returns a clean string array now (parsed from the model's JSON
+      // response) rather than raw text, so no markdown/formatting artifacts leak
+      // into the UI regardless of how the model chose to format its reply.
+      setSuggestions(Array.isArray(res.data.suggestions) ? res.data.suggestions : []);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not load AI suggestions.');
     } finally {
@@ -40,11 +43,11 @@ export default function AIInsights() {
           {error}
         </div>
       ) : (
-        <div className="ai-suggestions-text">
-          {text.split('\n').filter(Boolean).map((line, i) => (
-            <p key={i}>{line}</p>
-          ))}
-        </div>
+        suggestions.map((line, i) => (
+          <div className="insight-row" key={i}>
+            <i className="ti ti-bulb"></i> {line}
+          </div>
+        ))
       )}
     </div>
   );

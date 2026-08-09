@@ -30,7 +30,7 @@ export default function ForgotPassword() {
         <p className="auth-sub">Enter your account email and we'll send a reset link.</p>
 
         {error && <div className="error-banner">{error}</div>}
-        {message && <div className="chip" style={{ marginBottom: 16, display: 'block' }}>{message}</div>}
+        {message && <div className="success-banner">{message}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
