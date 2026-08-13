@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney, formatDate, describeDevice } from '../utils/format';
+import ThemeSettings from '../components/ThemeSettings.jsx';
 
 const LOCKABLE_TABS = [
   { key: 'transactions', label: 'Transactions' },
@@ -626,13 +627,15 @@ export default function Settings() {
         </div>
 
         {/* Export */}
-        <div className="card" style={{ gridColumn: '1 / -1' }}>
+        <div className="card">
           <div className="section-title">Export data</div>
           <p className="settings-hint" style={{ marginBottom: 12 }}>Download all your expenses as a CSV file.</p>
           <button className="btn" onClick={exportCsv}>
             <i className="ti ti-download"></i> Export CSV
           </button>
         </div>
+
+        <ThemeSettings />
       </div>
     </div>
   );

@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema(
     lockedTabs: { type: [String], default: [] },
     resetTokenHash: { type: String, default: null },
     resetTokenExpiry: { type: Date, default: null },
-    monthlyReportEmail: { type: Boolean, default: true }
+    monthlyReportEmail: { type: Boolean, default: true },
+    themeColors: {type: mongoose.Schema.Types.Mixed, default: null}
   },
   { timestamps: true }
 );

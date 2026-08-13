@@ -53,6 +53,7 @@ router.post('/signup', async (req, res) => {
       hasPin: false,
       lockedTabs: [],
       monthlyReportEmail: user.monthlyReportEmail,
+      themeColors: user.themeColors,
       token: await createSession(user._id, req)
     });
   } catch (err) {
@@ -78,6 +79,7 @@ router.post('/login', async (req, res) => {
       hasPin: !!user.pinHash,
       lockedTabs: user.lockedTabs || [],
       monthlyReportEmail: user.monthlyReportEmail,
+      themeColors: user.themeColors,
       token: await createSession(user._id, req)
     });
   } catch (err) {
@@ -94,7 +96,8 @@ router.get('/me', protect, async (req, res) => {
     currency: req.user.currency,
     hasPin: !!req.user.pinHash,
     lockedTabs: req.user.lockedTabs || [],
-    monthlyReportEmail: req.user.monthlyReportEmail
+    monthlyReportEmail: req.user.monthlyReportEmail,
+    themeColors: req.user.themeColors
   });
 });
 
@@ -319,6 +322,45 @@ router.put('/monthly-report-email', protect, async (req, res) => {
     req.user.monthlyReportEmail = !!req.body.enabled;
     await req.user.save();
     res.json({ monthlyReportEmail: req.user.monthlyReportEmail });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/auth/theme — save a custom color theme, or pass themeColors: null to
+// reset to the default. Only the 7 known keys with valid #rrggbb hex values are
+// accepted — anything else in the payload is silently dropped, not stored.
+const THEME_KEYS = ['background', 'card', 'border', 'text', 'accent', 'income', 'expense'];
+const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+router.put('/theme', protect, async (req, res) => {
+  try {
+    const { themeColors } = req.body;
+
+    if (themeColors === null) {
+      req.user.themeColors = null;
+      await req.user.save();
+      return res.json({ themeColors: null });
+    }
+
+    if (typeof themeColors !== 'object' || Array.isArray(themeColors)) {
+      return res.status(400).json({ message: 'themeColors must be an object or null' });
+    }
+
+    const cleaned = {};
+    for (const key of THEME_KEYS) {
+      const value = themeColors[key];
+      if (value !== undefined) {
+        if (!HEX_PATTERN.test(value)) {
+          return res.status(400).json({ message: `${key} must be a valid #rrggbb hex color` });
+        }
+        cleaned[key] = value;
+      }
+    }
+
+    req.user.themeColors = cleaned;
+    await req.user.save();
+    res.json({ themeColors: cleaned });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
