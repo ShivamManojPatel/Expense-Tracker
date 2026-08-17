@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney, formatDate, daysUntilBilling } from '../utils/format';
@@ -67,6 +67,24 @@ export default function Dashboard() {
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
+  }, [monthExpenses]);
+
+  // Day-by-day spend for the current calendar month, up through today — same
+  // UTC-day bucketing convention as Analytics' version, reusing monthExpenses
+  // (already filtered to this UTC month) instead of re-deriving it.
+  const dailySpending = useMemo(() => {
+    const todayDate = now.getUTCDate();
+    const map = {};
+    monthExpenses.filter((e) => e.type === 'expense').forEach((e) => {
+      const d = new Date(e.date);
+      const day = d.getUTCDate();
+      map[day] = (map[day] || 0) + e.amount;
+    });
+    const days = [];
+    for (let day = 1; day <= todayDate; day++) {
+      days.push({ day: String(day), name: `Day ${day}`, total: Math.round((map[day] || 0) * 100) / 100 });
+    }
+    return days;
   }, [monthExpenses]);
 
   const alerts = useMemo(() => {
@@ -155,6 +173,29 @@ export default function Dashboard() {
               <div className="metric-value">{formatMoney(monthlySubTotal, user?.currency)}</div>
             </div>
           </div>
+
+          {dailySpending.some((d) => d.total > 0) && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="section-title">Daily spending this month</div>
+              <div style={{ height: 160 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailySpending}>
+                    <defs>
+                      <linearGradient id="dashDailyBrassFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#CBA24D" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#CBA24D" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--paper-line)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} interval={dailySpending.length > 20 ? 2 : 0} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={36} />
+                    <Tooltip content={<ChartTooltip currency={user?.currency} />} cursor={{ stroke: 'var(--amber)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                    <Area type="monotone" dataKey="total" stroke="#CBA24D" strokeWidth={2} fill="url(#dashDailyBrassFill)" dot={false} activeDot={{ r: 4, fill: '#CBA24D', stroke: 'var(--paper-raised)', strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
           <div className="two-col">
             <div className="card">

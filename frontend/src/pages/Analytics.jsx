@@ -1,26 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney } from '../utils/format';
-
-// A moody, "vault ledger" categorical palette — brass, verdigris, rust, slate, plum,
-// olive, steel, leather — deliberately distinct from the app's semantic green/coral
-// (income/expense) so pie slices don't get misread as good/bad signals.
-const CHART_COLORS = ['#CBA24D', '#6E8B7E', '#8C5A3C', '#6B7280', '#9C7A9C', '#7A8C4C', '#4C6B8C', '#A67C52'];
-
-function ChartTooltip({ active, payload, label, currency }) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div className="chart-tooltip">
-      <div className="chart-tooltip-label">{payload[0].payload.name || label}</div>
-      <div className="chart-tooltip-value">{formatMoney(payload[0].value, currency)}</div>
-    </div>
-  );
-}
+import { CHART_COLORS, ChartTooltip } from '../components/ChartTheme';
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -51,6 +37,31 @@ export default function Analytics() {
         const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'short' });
         return { key, month: label, total: Math.round(total * 100) / 100 };
       });
+  }, [spendOnly]);
+
+  // Day-by-day spend for the current calendar month, up through today. Expense
+  // dates are stored as UTC midnight (see date-handling notes elsewhere), so this
+  // buckets by UTC day/month/year to stay consistent with the rest of the app.
+  const dailySpending = useMemo(() => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const todayDate = now.getUTCDate();
+
+    const map = {};
+    spendOnly.forEach((e) => {
+      const d = new Date(e.date);
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month) {
+        const day = d.getUTCDate();
+        map[day] = (map[day] || 0) + e.amount;
+      }
+    });
+
+    const days = [];
+    for (let day = 1; day <= todayDate; day++) {
+      days.push({ day: String(day), name: `Day ${day}`, total: Math.round((map[day] || 0) * 100) / 100 });
+    }
+    return days;
   }, [spendOnly]);
 
   const byCategory = useMemo(() => {
@@ -160,6 +171,29 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {dailySpending.some((d) => d.total > 0) && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="section-title">Daily spending this month</div>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dailySpending}>
+                <defs>
+                  <linearGradient id="dailyBrassFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#CBA24D" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#CBA24D" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--paper-line)" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} interval={dailySpending.length > 20 ? 2 : 0} />
+                <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={36} />
+                <Tooltip content={<ChartTooltip currency={user?.currency} />} cursor={{ stroke: 'var(--amber)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                <Area type="monotone" dataKey="total" stroke="#CBA24D" strokeWidth={2} fill="url(#dailyBrassFill)" dot={false} activeDot={{ r: 4, fill: '#CBA24D', stroke: 'var(--paper-raised)', strokeWidth: 2 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <div className="two-col">
         <div className="card">
