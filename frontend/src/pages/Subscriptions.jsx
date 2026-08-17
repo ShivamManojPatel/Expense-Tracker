@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { formatMoney } from '../utils/format';
+import { formatMoney, formatDate } from '../utils/format';
 import SubscriptionModal from '../components/SubscriptionModal';
 import SubscriptionCalendar from '../components/SubscriptionCalendar';
 
@@ -102,9 +102,18 @@ export default function Subscriptions() {
                 <div className="tx-icon"><i className="ti ti-refresh"></i></div>
                 <div className="tx-main">
                   <div className="tx-title">
-                    {s.name} {!s.active && <span className="chip" style={{ marginLeft: 6 }}>Paused</span>}
+                    {s.name}
+                    {!s.active && <span className="chip" style={{ marginLeft: 6 }}>Paused</span>}
+                    {s.active && s.paidThisCycle && (
+                      <span className="chip chip-paid" style={{ marginLeft: 6 }}>
+                        <i className="ti ti-check"></i> Paid
+                      </span>
+                    )}
                   </div>
-                  <div className="tx-meta">Day {s.billingDay} · {s.billingCycle}</div>
+                  <div className="tx-meta">
+                    Day {s.billingDay} · {s.billingCycle}
+                    {s.lastPaidDate && ` · Last paid ${formatDate(s.lastPaidDate)}`}
+                  </div>
                 </div>
                 <div className="tx-amount">{formatMoney(s.amount, user?.currency)}</div>
                 <button className="icon-btn" onClick={() => setModalMode(s)} aria-label="Edit">

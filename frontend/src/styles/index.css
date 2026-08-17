@@ -892,6 +892,20 @@ label {
   color: #1A1204;
 }
 
+.chip-paid {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.subscription-detected-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--amber);
+  margin-top: 6px;
+}
+
 /* ---------- Alerts ---------- */
 .alert-stack {
   display: flex;

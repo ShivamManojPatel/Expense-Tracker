@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
+const { isPaidThisCycle } = require('../utils/subscriptionCycle');
 
 router.use(protect);
 
@@ -9,7 +10,8 @@ router.use(protect);
 router.get('/', async (req, res) => {
   try {
     const subs = await Subscription.find({ user: req.user._id }).sort({ billingDay: 1 });
-    res.json(subs);
+    const now = new Date();
+    res.json(subs.map((s) => ({ ...s.toObject(), paidThisCycle: isPaidThisCycle(s, now) })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

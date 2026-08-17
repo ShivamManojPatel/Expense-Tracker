@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const PAYMENT_METHODS = ['Card', 'Cash', 'UPI', 'Bank Transfer', 'Other'];
 
-export default function ExpenseModal({ categories, initial, defaultType, onClose, onSave }) {
+export default function ExpenseModal({ categories, subscriptions = [], initial, defaultType, onClose, onSave }) {
   const [form, setForm] = useState(
     initial
-      ? { ...initial, tagsText: (initial.tags || []).join(', ') }
+      ? { ...initial, tagsText: (initial.tags || []).join(', '), linkedSubscription: initial.linkedSubscription || '' }
       : {
           type: defaultType || 'expense',
           amount: '',
@@ -21,12 +21,32 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
           date: new Date().toISOString().slice(0, 10),
           isSplit: false,
           totalAmount: '',
-          splitWith: ''
+          splitWith: '',
+          linkedSubscription: ''
         }
   );
   const [saving, setSaving] = useState(false);
+  // Tracks whether the person manually touched the subscription dropdown, so
+  // auto-detection doesn't keep overriding a choice they already made (e.g. they
+  // cleared it because this really was a one-off charge, not the subscription).
+  const [subscriptionTouched, setSubscriptionTouched] = useState(!!initial?.linkedSubscription);
 
   const isSavingType = form.type === 'saving_deposit' || form.type === 'saving_withdrawal';
+
+  const activeSubscriptions = subscriptions.filter((s) => s.active);
+
+  // Auto-detect: if the amount exactly matches exactly one active subscription's
+  // amount, pre-select it — the person can still change or clear it manually.
+  useEffect(() => {
+    if (subscriptionTouched || form.type !== 'expense' || !form.amount) return;
+    const matches = activeSubscriptions.filter((s) => Math.abs(s.amount - Number(form.amount)) < 0.01);
+    if (matches.length === 1) {
+      setForm((f) => ({ ...f, linkedSubscription: matches[0]._id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.amount, form.type]);
+
+  const autoDetectedSub = !subscriptionTouched && activeSubscriptions.find((s) => s._id === form.linkedSubscription);
 
   const categoriesFor = (type) =>
     categories.filter((c) => {
@@ -49,14 +69,15 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
   const switchType = (type) => {
     const isSaving = type === 'saving_deposit' || type === 'saving_withdrawal';
     if (isSaving) {
-      setForm({ ...form, type, category: 'Savings' });
+      setForm({ ...form, type, category: 'Savings', linkedSubscription: '' });
       return;
     }
     const stillValid = categoriesFor(type).some((c) => c.name === form.category);
     setForm({
       ...form,
       type,
-      category: stillValid ? form.category : categoriesFor(type)[0]?.name || ''
+      category: stillValid ? form.category : categoriesFor(type)[0]?.name || '',
+      linkedSubscription: type === 'expense' ? form.linkedSubscription : ''
     });
   };
 
@@ -72,7 +93,8 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
         ...form,
         amount: Number(form.amount),
         totalAmount: form.isSplit ? Number(form.totalAmount) : undefined,
-        tags
+        tags,
+        linkedSubscription: form.type === 'expense' && form.linkedSubscription ? form.linkedSubscription : null
       });
       onClose();
     } finally {
@@ -187,6 +209,30 @@ export default function ExpenseModal({ categories, initial, defaultType, onClose
               ))}
             </select>
           </div>
+
+          {form.type === 'expense' && activeSubscriptions.length > 0 && (
+            <div className="field">
+              <label htmlFor="linkedSubscription">Subscription payment</label>
+              <select
+                id="linkedSubscription"
+                value={form.linkedSubscription}
+                onChange={(e) => {
+                  setSubscriptionTouched(true);
+                  setForm({ ...form, linkedSubscription: e.target.value });
+                }}
+              >
+                <option value="">Not a subscription payment</option>
+                {activeSubscriptions.map((s) => (
+                  <option key={s._id} value={s._id}>{s.name} — {s.amount}</option>
+                ))}
+              </select>
+              {autoDetectedSub && (
+                <div className="subscription-detected-hint">
+                  <i className="ti ti-sparkles"></i> Matches your {autoDetectedSub.name} subscription — it'll be marked paid.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="note">Note</label>

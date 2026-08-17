@@ -15,12 +15,13 @@ export default function Transactions() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalMode, setModalMode] = useState(null);
   const [filters, setFilters] = useState({ category: 'All', type: 'All', search: '', tag: '' });
 
   const load = async () => {
-    const [expRes, catRes] = await Promise.all([
+    const [expRes, catRes, subRes] = await Promise.all([
       api.get('/expenses', {
         params: {
           category: filters.category,
@@ -28,10 +29,12 @@ export default function Transactions() {
           search: filters.search
         }
       }),
-      api.get('/categories')
+      api.get('/categories'),
+      api.get('/subscriptions')
     ]);
     setExpenses(expRes.data);
     setCategories(catRes.data);
+    setSubscriptions(subRes.data);
     setLoading(false);
   };
 
@@ -166,6 +169,7 @@ export default function Transactions() {
       {modalMode && (
         <ExpenseModal
           categories={categories}
+          subscriptions={subscriptions}
           initial={modalMode === 'add' ? null : modalMode}
           onClose={() => setModalMode(null)}
           onSave={handleSave}

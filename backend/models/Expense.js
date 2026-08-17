@@ -20,7 +20,8 @@ const expenseSchema = new mongoose.Schema(
     date: { type: Date, required: true, default: Date.now },
     isSplit: { type: Boolean, default: false },
     totalAmount: { type: Number, min: 0 },
-    splitWith: { type: String, trim: true, default: '' }
+    splitWith: { type: String, trim: true, default: '' },
+    linkedSubscription: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', default: null }
   },
   { timestamps: true }
 );

@@ -94,7 +94,7 @@ export default function Dashboard() {
       if (pct >= 100) list.push({ type: 'danger', text: `${b.category} budget is over by ${formatMoney(b.spent - b.monthlyLimit, user?.currency)}` });
       else if (pct >= 80) list.push({ type: 'warn', text: `${b.category} budget is ${Math.round(pct)}% used` });
     });
-    subs.filter((s) => s.active).forEach((s) => {
+    subs.filter((s) => s.active && !s.paidThisCycle).forEach((s) => {
       const daysAway = daysUntilBilling(s.billingDay, now);
       if (daysAway <= 3) list.push({ type: 'info', text: `${s.name} renews ${daysAway === 0 ? 'today' : 'in ' + daysAway + ' day' + (daysAway > 1 ? 's' : '')}` });
     });
@@ -270,7 +270,7 @@ export default function Dashboard() {
       )}
 
       {showModal && (
-        <ExpenseModal categories={categories} onClose={() => setShowModal(false)} onSave={handleSave} />
+        <ExpenseModal categories={categories} subscriptions={subs} onClose={() => setShowModal(false)} onSave={handleSave} />
       )}
     </div>
   );

@@ -15,7 +15,8 @@ const subscriptionSchema = new mongoose.Schema(
     billingDay: { type: Number, required: true, min: 1, max: 31 },
     startDate: { type: Date, required: true, default: Date.now },
     active: { type: Boolean, default: true },
-    notes: { type: String, trim: true, default: '' }
+    notes: { type: String, trim: true, default: '' },
+    lastPaidDate: { type: Date, default: null }
   },
   { timestamps: true }
 );
