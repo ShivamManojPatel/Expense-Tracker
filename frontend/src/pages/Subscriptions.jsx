@@ -82,6 +82,9 @@ export default function Subscriptions() {
                   <span className="cal-dot"></span> Billing day
                 </div>
                 <div className="cal-legend-item">
+                  <span className="cal-dot cal-dot-paid"></span> Paid this cycle
+                </div>
+                <div className="cal-legend-item">
                   <span style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid var(--green)', display: 'inline-block' }}></span> Today
                 </div>
               </div>

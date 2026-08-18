@@ -41,10 +41,17 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
               {subsByDay[day] && (
                 <div
                   className="cal-dot-wrap"
-                  title={showTooltip ? undefined : subsByDay[day].map((s) => s.name).join(', ')}
+                  title={
+                    showTooltip
+                      ? undefined
+                      : subsByDay[day].map((s) => `${s.name}${isCurrentMonth && s.paidThisCycle ? ' (Paid)' : ''}`).join(', ')
+                  }
                 >
                   {subsByDay[day].map((s) => (
-                    <span className="cal-dot" key={s._id}></span>
+                    <span
+                      className={`cal-dot ${isCurrentMonth && s.paidThisCycle ? 'cal-dot-paid' : ''}`}
+                      key={s._id}
+                    ></span>
                   ))}
                 </div>
               )}
@@ -55,7 +62,10 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
                   </div>
                   {subsByDay[day].map((s) => (
                     <div className="cal-tooltip-row" key={s._id}>
-                      <span>{s.name}</span>
+                      <span>
+                        {s.name}
+                        {isCurrentMonth && s.paidThisCycle && <i className="ti ti-check" style={{ color: 'var(--green)', marginLeft: 4 }}></i>}
+                      </span>
                       <span>{formatMoney(s.amount, currency)}</span>
                     </div>
                   ))}

@@ -270,7 +270,7 @@ export default function Dashboard() {
       )}
 
       {showModal && (
-        <ExpenseModal categories={categories} subscriptions={subs} onClose={() => setShowModal(false)} onSave={handleSave} />
+        <ExpenseModal categories={categories} subscriptions={subs} currency={user?.currency} onClose={() => setShowModal(false)} onSave={handleSave} />
       )}
     </div>
   );

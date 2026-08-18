@@ -170,6 +170,7 @@ export default function Transactions() {
         <ExpenseModal
           categories={categories}
           subscriptions={subscriptions}
+          currency={user?.currency}
           initial={modalMode === 'add' ? null : modalMode}
           onClose={() => setModalMode(null)}
           onSave={handleSave}

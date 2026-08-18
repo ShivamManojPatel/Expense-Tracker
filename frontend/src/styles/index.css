@@ -661,6 +661,8 @@ label {
   background: var(--amber);
 }
 
+.cal-dot-paid { background: var(--green); }
+
 .cal-legend {
   display: flex;
   align-items: center;
@@ -904,6 +906,18 @@ label {
   font-size: 12px;
   color: var(--amber);
   margin-top: 6px;
+}
+
+.subscription-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.chip-candidate {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber);
 }
 
 /* ---------- Alerts ---------- */

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { formatMoney } from '../utils/format';
 
 const PAYMENT_METHODS = ['Card', 'Cash', 'UPI', 'Bank Transfer', 'Other'];
 
-export default function ExpenseModal({ categories, subscriptions = [], initial, defaultType, onClose, onSave }) {
+export default function ExpenseModal({ categories, subscriptions = [], currency, initial, defaultType, onClose, onSave }) {
   const [form, setForm] = useState(
     initial
       ? { ...initial, tagsText: (initial.tags || []).join(', '), linkedSubscription: initial.linkedSubscription || '' }
@@ -26,7 +27,7 @@ export default function ExpenseModal({ categories, subscriptions = [], initial, 
         }
   );
   const [saving, setSaving] = useState(false);
-  // Tracks whether the person manually touched the subscription dropdown, so
+  // Tracks whether the person manually touched the subscription picker, so
   // auto-detection doesn't keep overriding a choice they already made (e.g. they
   // cleared it because this really was a one-off charge, not the subscription).
   const [subscriptionTouched, setSubscriptionTouched] = useState(!!initial?.linkedSubscription);
@@ -35,18 +36,26 @@ export default function ExpenseModal({ categories, subscriptions = [], initial, 
 
   const activeSubscriptions = subscriptions.filter((s) => s.active);
 
-  // Auto-detect: if the amount exactly matches exactly one active subscription's
-  // amount, pre-select it — the person can still change or clear it manually.
+  // Every active subscription whose price matches the entered amount. Could be
+  // zero, one (safe to auto-select), or more than one (ambiguous — e.g. two
+  // subscriptions that happen to cost the same; we highlight all of them as
+  // candidates instead of guessing which one is right).
+  const matchingSubs =
+    form.type === 'expense' && form.amount
+      ? activeSubscriptions.filter((s) => Math.abs(s.amount - Number(form.amount)) < 0.01)
+      : [];
+
+  // Auto-detect only fires for an unambiguous single match.
   useEffect(() => {
     if (subscriptionTouched || form.type !== 'expense' || !form.amount) return;
-    const matches = activeSubscriptions.filter((s) => Math.abs(s.amount - Number(form.amount)) < 0.01);
-    if (matches.length === 1) {
-      setForm((f) => ({ ...f, linkedSubscription: matches[0]._id }));
+    if (matchingSubs.length === 1) {
+      setForm((f) => ({ ...f, linkedSubscription: matchingSubs[0]._id }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.amount, form.type]);
 
-  const autoDetectedSub = !subscriptionTouched && activeSubscriptions.find((s) => s._id === form.linkedSubscription);
+  const autoDetectedSub =
+    !subscriptionTouched && matchingSubs.length === 1 && activeSubscriptions.find((s) => s._id === form.linkedSubscription);
 
   const categoriesFor = (type) =>
     categories.filter((c) => {
@@ -212,20 +221,41 @@ export default function ExpenseModal({ categories, subscriptions = [], initial, 
 
           {form.type === 'expense' && activeSubscriptions.length > 0 && (
             <div className="field">
-              <label htmlFor="linkedSubscription">Subscription payment</label>
-              <select
-                id="linkedSubscription"
-                value={form.linkedSubscription}
-                onChange={(e) => {
-                  setSubscriptionTouched(true);
-                  setForm({ ...form, linkedSubscription: e.target.value });
-                }}
-              >
-                <option value="">Not a subscription payment</option>
-                {activeSubscriptions.map((s) => (
-                  <option key={s._id} value={s._id}>{s.name} — {s.amount}</option>
-                ))}
-              </select>
+              <label>Subscription payment</label>
+              {matchingSubs.length > 1 && (
+                <div className="subscription-detected-hint">
+                  <i className="ti ti-alert-circle"></i> {matchingSubs.length} subscriptions match this amount — pick which one:
+                </div>
+              )}
+              <div className="subscription-chip-row">
+                <button
+                  type="button"
+                  className={`chip chip-btn ${!form.linkedSubscription ? 'chip-active' : ''}`}
+                  onClick={() => {
+                    setSubscriptionTouched(true);
+                    setForm({ ...form, linkedSubscription: '' });
+                  }}
+                >
+                  None
+                </button>
+                {activeSubscriptions.map((s) => {
+                  const isSelected = form.linkedSubscription === s._id;
+                  const isCandidate = !isSelected && matchingSubs.some((m) => m._id === s._id);
+                  return (
+                    <button
+                      key={s._id}
+                      type="button"
+                      className={`chip chip-btn ${isSelected ? 'chip-active' : ''} ${isCandidate ? 'chip-candidate' : ''}`}
+                      onClick={() => {
+                        setSubscriptionTouched(true);
+                        setForm({ ...form, linkedSubscription: s._id });
+                      }}
+                    >
+                      {s.name} · {formatMoney(s.amount, currency)}
+                    </button>
+                  );
+                })}
+              </div>
               {autoDetectedSub && (
                 <div className="subscription-detected-hint">
                   <i className="ti ti-sparkles"></i> Matches your {autoDetectedSub.name} subscription — it'll be marked paid.
