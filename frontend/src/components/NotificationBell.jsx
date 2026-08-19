@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
-import { formatMoney, daysUntilBilling } from '../utils/format';
+import { formatMoney, daysUntilNextBilling } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 
 export default function NotificationBell() {
@@ -24,7 +24,7 @@ export default function NotificationBell() {
     });
 
     subRes.data.filter((s) => s.active && !s.paidThisCycle).forEach((s) => {
-      const daysAway = daysUntilBilling(s.billingDay, now);
+      const daysAway = daysUntilNextBilling(s, now);
       if (daysAway <= 3) {
         list.push({ type: 'info', text: `${s.name} renews ${daysAway === 0 ? 'today' : 'in ' + daysAway + ' day' + (daysAway > 1 ? 's' : '')}` });
       }

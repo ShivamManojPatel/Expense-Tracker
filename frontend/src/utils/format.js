@@ -22,11 +22,15 @@ export function formatDate(date) {
   });
 }
 
-// Calendar-accurate "days until this subscription's next billing date".
-// The old (billingDay - today + 31) % 31 formula assumed every month has 31 days,
-// which overcounts by 1-3 days in shorter months (Feb, Apr, Jun, Sep, Nov) and can
-// cause upcoming-renewal alerts to be missed or mistimed.
-export function daysUntilBilling(billingDay, today = new Date()) {
+export function daysUntilNextBilling(sub, today = new Date()) {
+  if (sub.billingCycle === 'Weekly' || sub.billingCycle === 'Bi-weekly' || sub.billingCycle === 'Yearly') {
+    const intervalDays = sub.billingCycle === 'Weekly' ? 7 : sub.billingCycle === 'Bi-weekly' ? 14 : 365;
+    return daysUntilAnchoredOccurrence(sub.startDate, intervalDays, today);
+  }
+  return daysUntilMonthlyBilling(sub.billingDay, today);
+}
+
+function daysUntilMonthlyBilling(billingDay, today) {
   const year = today.getFullYear();
   const month = today.getMonth();
   const todayMidnight = new Date(year, month, today.getDate());
@@ -40,6 +44,19 @@ export function daysUntilBilling(billingDay, today = new Date()) {
   }
 
   return Math.round((target - todayMidnight) / 86400000);
+}
+
+function daysUntilAnchoredOccurrence(startDate, intervalDays, today) {
+  const start = new Date(startDate);
+  const startMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const todayMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const intervalMs = intervalDays * 86400000;
+
+  if (todayMs <= startMs) return Math.round((startMs - todayMs) / 86400000);
+
+  const remainder = (todayMs - startMs) % intervalMs;
+  if (remainder === 0) return 0;
+  return Math.round((intervalMs - remainder) / 86400000);
 }
 
 // Lightweight, dependency-free "Browser on OS" label for a session's stored

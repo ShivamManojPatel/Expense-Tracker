@@ -8,11 +8,17 @@ const subscriptionSchema = new mongoose.Schema(
     category: { type: String, trim: true, default: 'Subscription' },
     billingCycle: {
       type: String,
-      enum: ['Weekly', 'Monthly', 'Yearly'],
+      enum: ['Weekly', 'Bi-weekly', 'Monthly', 'Yearly'],
       default: 'Monthly'
     },
-    // Day of month (1-31) the subscription bills on, used to render the calendar
-    billingDay: { type: Number, required: true, min: 1, max: 31 },
+    billingDay: {
+      type: Number,
+      min: 1,
+      max: 31,
+      required: function () {
+        return this.billingCycle === 'Monthly' || this.billingCycle === 'Yearly';
+      }
+    },
     startDate: { type: Date, required: true, default: Date.now },
     active: { type: Boolean, default: true },
     notes: { type: String, trim: true, default: '' },

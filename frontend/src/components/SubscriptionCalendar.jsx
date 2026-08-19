@@ -1,6 +1,33 @@
 import { formatMoney } from '../utils/format';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ANCHORED_INTERVAL_DAYS = { Weekly: 7, 'Bi-weekly': 14 };
+
+// Weekly/Bi-weekly subscriptions recur every 7/14 days from startDate rather than
+// on a fixed "day of month" — so unlike Monthly/Yearly, they can bill more than
+// once in a given displayed month. Returns every day-of-month they land on within
+// the given calendar month.
+function occurrenceDaysInMonth(sub, year, month) {
+  const intervalDays = ANCHORED_INTERVAL_DAYS[sub.billingCycle];
+  if (!intervalDays) return [sub.billingDay]; // Monthly / Yearly
+
+  const start = new Date(sub.startDate);
+  const startMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const intervalMs = intervalDays * 86400000;
+  const monthStartMs = Date.UTC(year, month, 1);
+  const monthEndMs = Date.UTC(year, month + 1, 0);
+
+  let cyclesToMonthStart = Math.ceil((monthStartMs - startMs) / intervalMs);
+  if (cyclesToMonthStart < 0) cyclesToMonthStart = 0;
+
+  const days = [];
+  let occurrenceMs = startMs + cyclesToMonthStart * intervalMs;
+  while (occurrenceMs <= monthEndMs) {
+    if (occurrenceMs >= monthStartMs) days.push(new Date(occurrenceMs).getUTCDate());
+    occurrenceMs += intervalMs;
+  }
+  return days;
+}
 
 // showTooltip: renders a styled hover popup with that day's subscription details.
 // Only passed true from the Dashboard widget — the Subscriptions page calendar
@@ -20,8 +47,10 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
   const subsByDay = {};
   subscriptions.forEach((s) => {
     if (!s.active) return;
-    if (!subsByDay[s.billingDay]) subsByDay[s.billingDay] = [];
-    subsByDay[s.billingDay].push(s);
+    occurrenceDaysInMonth(s, year, month).forEach((day) => {
+      if (!subsByDay[day]) subsByDay[day] = [];
+      subsByDay[day].push(s);
+    });
   });
 
   return (

@@ -1,26 +1,38 @@
 import { useState } from 'react';
 
-const CYCLES = ['Weekly', 'Monthly', 'Yearly'];
+const CYCLES = ['Weekly', 'Bi-weekly', 'Monthly', 'Yearly'];
 
 export default function SubscriptionModal({ initial, onClose, onSave }) {
   const [form, setForm] = useState(
-    initial || {
-      name: '',
-      amount: '',
-      category: 'Subscriptions',
-      billingCycle: 'Monthly',
-      billingDay: 1,
-      notes: '',
-      active: true
-    }
+    initial
+      ? { ...initial, startDate: initial.startDate ? new Date(initial.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) }
+      : {
+          name: '',
+          amount: '',
+          category: 'Subscriptions',
+          billingCycle: 'Monthly',
+          billingDay: 1,
+          startDate: new Date().toISOString().slice(0, 10),
+          notes: '',
+          active: true
+        }
   );
   const [saving, setSaving] = useState(false);
+
+  const isAnchored = form.billingCycle === 'Weekly' || form.billingCycle === 'Bi-weekly';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({ ...form, amount: Number(form.amount), billingDay: Number(form.billingDay) });
+      await onSave({
+        ...form,
+        amount: Number(form.amount),
+        // Weekly/Bi-weekly recur from startDate, not a day-of-month — billingDay
+        // isn't used for those, but we still send a sensible derived value since
+        // the field exists in the data model (harmless, just unused for these cycles).
+        billingDay: isAnchored ? new Date(form.startDate).getDate() : Number(form.billingDay)
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -76,18 +88,33 @@ export default function SubscriptionModal({ initial, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="billingDay">Day of month it bills (1–31)</label>
-            <input
-              id="billingDay"
-              type="number"
-              min="1"
-              max="31"
-              value={form.billingDay}
-              onChange={(e) => setForm({ ...form, billingDay: e.target.value })}
-              required
-            />
-          </div>
+          {isAnchored ? (
+            <div className="field">
+              <label htmlFor="startDate">
+                {form.billingCycle === 'Weekly' ? 'Bills every 7 days starting' : 'Bills every 14 days starting'}
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                required
+              />
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="billingDay">Day of month it bills (1–31)</label>
+              <input
+                id="billingDay"
+                type="number"
+                min="1"
+                max="31"
+                value={form.billingDay}
+                onChange={(e) => setForm({ ...form, billingDay: e.target.value })}
+                required
+              />
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="notes">Notes</label>

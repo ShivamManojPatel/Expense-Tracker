@@ -21,8 +21,9 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, amount, category, billingCycle, billingDay, startDate, notes } = req.body;
-    if (!name || !amount || !billingDay) {
-      return res.status(400).json({ message: 'Name, amount and billingDay are required' });
+    const needsBillingDay = !billingCycle || billingCycle === 'Monthly' || billingCycle === 'Yearly';
+    if (!name || !amount || (needsBillingDay && !billingDay)) {
+      return res.status(400).json({ message: 'Name, amount, and billing day are required' });
     }
     const sub = await Subscription.create({
       user: req.user._id,
