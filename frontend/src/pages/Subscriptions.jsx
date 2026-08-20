@@ -44,7 +44,7 @@ export default function Subscriptions() {
   const monthLabel = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const monthlyTotal = subs
     .filter((s) => s.active)
-    .reduce((sum, s) => sum + (s.billingCycle === 'Yearly' ? s.amount / 12 : s.billingCycle === 'Weekly' ? s.amount * 4.33 : s.amount), 0);
+    .reduce((sum, s) => sum + (s.billingCycle === 'Yearly' ? s.amount / 12 : s.billingCycle === 'Weekly' ? s.amount * 4.33 : s.billingCycle === 'Bi-weekly' ? s.amount * 2.17 : s.amount), 0);
 
   return (
     <div>
