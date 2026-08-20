@@ -25,13 +25,17 @@ export default function SubscriptionModal({ initial, onClose, onSave }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({
+            await onSave({
         ...form,
         amount: Number(form.amount),
         // Weekly/Bi-weekly recur from startDate, not a day-of-month — billingDay
         // isn't used for those, but we still send a sensible derived value since
         // the field exists in the data model (harmless, just unused for these cycles).
-        billingDay: isAnchored ? new Date(form.startDate).getDate() : Number(form.billingDay)
+        // Extracted directly from the "YYYY-MM-DD" string rather than via a Date
+        // object — new Date("YYYY-MM-DD") parses as UTC midnight, and .getDate()
+        // reads that back in local time, which rolls the day back by one for
+        // anyone west of UTC.
+        billingDay: isAnchored ? Number(form.startDate.slice(8, 10)) : Number(form.billingDay)
       });
       onClose();
     } finally {

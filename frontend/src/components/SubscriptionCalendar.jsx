@@ -29,6 +29,22 @@ function occurrenceDaysInMonth(sub, year, month) {
   return days;
 }
 
+// The exact UTC date (as ms since epoch) of a Weekly/Bi-weekly subscription's
+// CURRENT cycle occurrence — i.e. which one of possibly several dots shown this
+// month is "the" active cycle right now. Mirrors the backend's
+// currentAnchoredCycleStart in subscriptionCycle.js.
+function currentAnchoredOccurrenceMs(sub, today) {
+  const intervalDays = ANCHORED_INTERVAL_DAYS[sub.billingCycle];
+  if (!intervalDays) return null;
+  const start = new Date(sub.startDate);
+  const startMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const todayMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const intervalMs = intervalDays * 86400000;
+  if (todayMs <= startMs) return startMs;
+  const cyclesElapsed = Math.floor((todayMs - startMs) / intervalMs);
+  return startMs + cyclesElapsed * intervalMs;
+}
+
 // showTooltip: renders a styled hover popup with that day's subscription details.
 // Only passed true from the Dashboard widget — the Subscriptions page calendar
 // keeps the plain browser title tooltip instead.
@@ -47,9 +63,22 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
   const subsByDay = {};
   subscriptions.forEach((s) => {
     if (!s.active) return;
+    const intervalDays = ANCHORED_INTERVAL_DAYS[s.billingCycle];
+    const currentOccurrenceMs = intervalDays && isCurrentMonth ? currentAnchoredOccurrenceMs(s, today) : null;
+
     occurrenceDaysInMonth(s, year, month).forEach((day) => {
       if (!subsByDay[day]) subsByDay[day] = [];
-      subsByDay[day].push(s);
+
+      // Whether THIS specific dot represents the subscription's current billing
+      // cycle (and is therefore eligible to show as "paid"). Monthly/Yearly only
+      // ever show one dot a month, so that dot always is the current cycle.
+      // Weekly/Bi-weekly can show several dots a month, so only the one matching
+      // the actual current-cycle date counts — not every occurrence.
+      const isCurrentCycleDot = !intervalDays
+        ? true
+        : currentOccurrenceMs !== null && Date.UTC(year, month, day) === currentOccurrenceMs;
+
+      subsByDay[day].push({ ...s, isPaidDot: isCurrentMonth && s.paidThisCycle && isCurrentCycleDot });
     });
   });
 
@@ -73,13 +102,13 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
                   title={
                     showTooltip
                       ? undefined
-                      : subsByDay[day].map((s) => `${s.name}${isCurrentMonth && s.paidThisCycle ? ' (Paid)' : ''}`).join(', ')
+                      : subsByDay[day].map((s) => `${s.name}${s.isPaidDot ? ' (Paid)' : ''}`).join(', ')
                   }
                 >
-                  {subsByDay[day].map((s) => (
+                  {subsByDay[day].map((s, i2) => (
                     <span
-                      className={`cal-dot ${isCurrentMonth && s.paidThisCycle ? 'cal-dot-paid' : ''}`}
-                      key={s._id}
+                      className={`cal-dot ${s.isPaidDot ? 'cal-dot-paid' : ''}`}
+                      key={`${s._id}-${i2}`}
                     ></span>
                   ))}
                 </div>
@@ -89,11 +118,11 @@ export default function SubscriptionCalendar({ monthDate, subscriptions, showToo
                   <div className="cal-tooltip-date">
                     {monthDate.toLocaleDateString(undefined, { month: 'short' })} {day}
                   </div>
-                  {subsByDay[day].map((s) => (
-                    <div className="cal-tooltip-row" key={s._id}>
+                  {subsByDay[day].map((s, i2) => (
+                    <div className="cal-tooltip-row" key={`${s._id}-${i2}`}>
                       <span>
                         {s.name}
-                        {isCurrentMonth && s.paidThisCycle && <i className="ti ti-check" style={{ color: 'var(--green)', marginLeft: 4 }}></i>}
+                        {s.isPaidDot && <i className="ti ti-check" style={{ color: 'var(--green)', marginLeft: 4 }}></i>}
                       </span>
                       <span>{formatMoney(s.amount, currency)}</span>
                     </div>
